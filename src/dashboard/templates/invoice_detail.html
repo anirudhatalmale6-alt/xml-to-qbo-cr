@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Invoice {{ invoice.consecutive_number if invoice else '' }} — XML to QBO{% endblock %}
+{% block content %}
+{% if invoice %}
+<h2 class="section-title">
+    Invoice: {{ invoice.consecutive_number }}
+    <span class="badge {{ invoice.status }}" style="font-size: 0.8rem; vertical-align: middle;">
+        {{ invoice.status }}
+    </span>
+</h2>
+
+<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+    <div class="stat-card">
+        <div class="label">Issuer (Vendor)</div>
+        <div style="font-size: 1.1rem; font-weight: 600; margin-top: 0.3rem;">{{ invoice.issuer_name }}</div>
+        <div style="color: #999; font-size: 0.85rem;">C&eacute;dula: {{ invoice.issuer_id }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Receiver</div>
+        <div style="font-size: 1.1rem; font-weight: 600; margin-top: 0.3rem;">{{ invoice.receiver_name }}</div>
+        <div style="color: #999; font-size: 0.85rem;">C&eacute;dula: {{ invoice.receiver_id }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Total Amount</div>
+        <div class="value" style="font-size: 1.5rem;">{{ "{:,.2f}".format(invoice.total_amount) }}</div>
+        <div style="color: #999;">{{ invoice.currency }} | Tax: {{ "{:,.2f}".format(invoice.total_tax) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Issue Date</div>
+        <div style="font-size: 1.1rem; font-weight: 600; margin-top: 0.3rem;">
+            {{ invoice.issue_date[:10] if invoice.issue_date else '-' }}
+        </div>
+    </div>
+</div>
+
+{% if invoice.error_message %}
+<div class="flash error" style="margin-bottom: 1rem;">
+    <strong>Error:</strong> {{ invoice.error_message }}
+</div>
+{% endif %}
+
+<div style="margin-bottom: 1rem;">
+    <strong>Clave:</strong> <code>{{ invoice.clave }}</code>
+</div>
+<div style="margin-bottom: 1rem;">
+    <strong>QBO Vendor ID:</strong> {{ invoice.qbo_vendor_id or 'N/A' }} |
+    <strong>QBO Bill ID:</strong> {{ invoice.qbo_bill_id or 'N/A' }}
+</div>
+<div style="margin-bottom: 1rem;">
+    <strong>XML File:</strong> {{ invoice.xml_filename or 'N/A' }}
+</div>
+
+<h3 class="section-title" style="margin-top: 2rem;">Processing Log</h3>
+{% if logs %}
+<table>
+    <thead>
+        <tr>
+            <th>Time</th>
+            <th>Action</th>
+            <th>Status</th>
+            <th>Detail</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for log in logs %}
+        <tr>
+            <td>{{ log.created_at }}</td>
+            <td>{{ log.action }}</td>
+            <td><span class="badge {{ log.status }}">{{ log.status }}</span></td>
+            <td>{{ log.detail }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p style="color: #999;">No processing logs available.</p>
+{% endif %}
+
+<a href="/" class="btn btn-primary" style="margin-top: 1rem;">Back to Dashboard</a>
+{% else %}
+<p>Invoice not found.</p>
+{% endif %}
+{% endblock %}

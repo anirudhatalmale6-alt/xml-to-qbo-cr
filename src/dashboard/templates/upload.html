@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Upload XML — XML to QBO{% endblock %}
+{% block content %}
+<h2 class="section-title">Upload Invoice XML</h2>
+<form method="POST" enctype="multipart/form-data">
+    <div class="upload-area">
+        <p style="font-size: 1.2rem; color: #7f8c8d; margin-bottom: 1rem;">
+            Drop your Costa Rica electronic invoice XML files here
+        </p>
+        <input type="file" name="xml_files" accept=".xml" multiple
+               style="font-size: 1rem;">
+        <p style="color: #bdc3c7; margin-top: 1rem; font-size: 0.85rem;">
+            Supports Factura Electr&oacute;nica v4.3 and v4.4 formats
+        </p>
+    </div>
+    <button type="submit" class="btn btn-success">Process XML Files</button>
+</form>
+{% endblock %}

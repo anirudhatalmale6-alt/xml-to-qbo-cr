@@ -1,0 +1,9 @@
+.env
+data/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+*.db
+qbo_tokens.json
+tax_mapping.json
