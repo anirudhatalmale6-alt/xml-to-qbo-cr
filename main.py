@@ -1,15 +1,16 @@
 """
 Main entry point for XML-to-QBO invoice automation.
 Starts the dashboard web server and email polling in background.
+Supports multiple email accounts (Gmail, Outlook, GMX, etc.)
 """
 import os
 import sys
 import logging
 import threading
+import time
 
 from config.settings import (
-    EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASSWORD,
-    EMAIL_FOLDER, EMAIL_POLL_INTERVAL_SECONDS,
+    EMAIL_ACCOUNTS, EMAIL_POLL_INTERVAL_SECONDS,
     XML_STORAGE_PATH, DASHBOARD_HOST, DASHBOARD_PORT, LOG_LEVEL
 )
 from src.database import init_db
@@ -17,6 +18,7 @@ from src.processor import process_xml_file
 from src.email.monitor import EmailMonitor
 
 # Setup logging
+os.makedirs("data", exist_ok=True)
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL, logging.INFO),
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -38,42 +40,46 @@ def on_xml_received(file_path: str, sender: str, subject: str):
         logger.warning(f"FAILED: {result.message}")
 
 
-def start_email_monitor():
-    """Start email monitoring in a background thread."""
-    if not EMAIL_USER or not EMAIL_PASSWORD:
-        logger.warning("Email credentials not configured — email monitoring disabled.")
-        logger.info("Set EMAIL_USER and EMAIL_PASSWORD in .env to enable.")
+def start_email_monitors():
+    """Start email monitoring for all configured accounts."""
+    if not EMAIL_ACCOUNTS:
+        logger.warning("No email accounts configured — email monitoring disabled.")
+        logger.info("Set EMAIL_ACCOUNTS in .env to enable.")
         return
 
     xml_dir = os.path.join(os.path.dirname(__file__), XML_STORAGE_PATH)
     os.makedirs(xml_dir, exist_ok=True)
 
-    def polling_loop():
-        monitor = EmailMonitor(
-            host=EMAIL_HOST,
-            port=EMAIL_PORT,
-            username=EMAIL_USER,
-            password=EMAIL_PASSWORD,
-            folder=EMAIL_FOLDER,
-            xml_save_dir=xml_dir,
-        )
-        while True:
-            try:
-                monitor.connect()
-                xml_files = monitor.check_for_new_xml(on_xml_found=on_xml_received)
-                if xml_files:
-                    logger.info(f"Processed {len(xml_files)} XML files from email")
-                monitor.disconnect()
-            except Exception as e:
-                logger.error(f"Email monitor error: {e}")
-                monitor.disconnect()
+    for account in EMAIL_ACCOUNTS:
+        account_user = account.get("user", "unknown")
+        logger.info(f"Starting email monitor for: {account_user}")
 
-            import time
-            time.sleep(EMAIL_POLL_INTERVAL_SECONDS)
+        def polling_loop(acct=account):
+            monitor = EmailMonitor(
+                host=acct.get("host", "imap.gmail.com"),
+                port=int(acct.get("port", 993)),
+                username=acct["user"],
+                password=acct["password"],
+                folder=acct.get("folder", "INBOX"),
+                xml_save_dir=xml_dir,
+            )
+            while True:
+                try:
+                    monitor.connect()
+                    xml_files = monitor.check_for_new_xml(on_xml_found=on_xml_received)
+                    if xml_files:
+                        logger.info(f"[{acct['user']}] Processed {len(xml_files)} XML files")
+                    monitor.disconnect()
+                except Exception as e:
+                    logger.error(f"[{acct['user']}] Email monitor error: {e}")
+                    monitor.disconnect()
 
-    thread = threading.Thread(target=polling_loop, daemon=True)
-    thread.start()
-    logger.info(f"Email monitor started — checking every {EMAIL_POLL_INTERVAL_SECONDS}s")
+                time.sleep(EMAIL_POLL_INTERVAL_SECONDS)
+
+        thread = threading.Thread(target=polling_loop, daemon=True, name=f"email-{account_user}")
+        thread.start()
+
+    logger.info(f"Monitoring {len(EMAIL_ACCOUNTS)} email account(s) — polling every {EMAIL_POLL_INTERVAL_SECONDS}s")
 
 
 def main():
@@ -86,8 +92,8 @@ def main():
     init_db()
     logger.info("Database initialized")
 
-    # Start email monitoring
-    start_email_monitor()
+    # Start email monitoring for all accounts
+    start_email_monitors()
 
     # Start web dashboard
     logger.info(f"Starting dashboard at http://{DASHBOARD_HOST}:{DASHBOARD_PORT}")

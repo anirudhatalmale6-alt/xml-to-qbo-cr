@@ -23,13 +23,34 @@ QBO_AUTH_URL = "https://appcenter.intuit.com/connect/oauth2"
 QBO_TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
 QBO_REVOKE_URL = "https://developer.api.intuit.com/v2/oauth2/tokens/revoke"
 
-# Email (IMAP)
+# Email (IMAP) — supports multiple accounts
+# Single account (legacy)
 EMAIL_HOST = os.getenv("EMAIL_HOST", "imap.gmail.com")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "993"))
 EMAIL_USER = os.getenv("EMAIL_USER", "")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")  # App password for Gmail
 EMAIL_FOLDER = os.getenv("EMAIL_FOLDER", "INBOX")
 EMAIL_POLL_INTERVAL_SECONDS = int(os.getenv("EMAIL_POLL_INTERVAL_SECONDS", "60"))
+
+# Multiple email accounts — JSON format in .env
+# EMAIL_ACCOUNTS='[{"host":"imap.gmail.com","port":993,"user":"x@gmail.com","password":"xxx"},...]'
+import json
+EMAIL_ACCOUNTS_RAW = os.getenv("EMAIL_ACCOUNTS", "")
+EMAIL_ACCOUNTS = []
+if EMAIL_ACCOUNTS_RAW:
+    try:
+        EMAIL_ACCOUNTS = json.loads(EMAIL_ACCOUNTS_RAW)
+    except json.JSONDecodeError:
+        pass
+# If no multi-account config but single account exists, use that
+if not EMAIL_ACCOUNTS and EMAIL_USER and EMAIL_PASSWORD:
+    EMAIL_ACCOUNTS = [{
+        "host": EMAIL_HOST,
+        "port": EMAIL_PORT,
+        "user": EMAIL_USER,
+        "password": EMAIL_PASSWORD,
+        "folder": EMAIL_FOLDER,
+    }]
 
 # Application
 APP_SECRET_KEY = os.getenv("APP_SECRET_KEY", "change-me-in-production")
